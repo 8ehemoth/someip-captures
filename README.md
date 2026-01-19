@@ -1,5 +1,5 @@
 
-#  “어떻게 모았는지” 수집 절차(Discussion) 문서화
+#  PCAP 어떻게 모았는지 수집 절차(Discussion)를 정리한 문서
 
 ## 1. 실험 구성(Topology / 구성도)
 
