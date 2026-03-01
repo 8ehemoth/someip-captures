@@ -1,0 +1,28 @@
+{
+  "unicast": "192.168.40.135",
+  "logging": {
+    "level": "debug",
+    "console": "true",
+    "file": { "enable": "false" },
+    "dlt": "false"
+  },
+  "applications": [
+    { "name": "graphql", "id": "0x1343" }
+  ],
+  "routing": "graphql",
+
+  "service-discovery": {
+    "enable": "true",
+    "multicast": "224.244.224.245",
+    "port": "30490",
+    "protocol": "udp"
+  },
+
+  "services": [
+    {
+      "service": "0xff40",
+      "instance": "0x0001",
+      "unreliable": "31000"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+[default]
+binding=someip
+
+[logging]
+console=true
+level=info
+
+[playground-client]
+service=org.genivi.vehicle.playground
+instance=org.genivi.vehicle.playground
+domain=local
