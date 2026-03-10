@@ -7,8 +7,10 @@ import argparse
 import subprocess
 from pathlib import Path
 
+
 def list_to_csv(arr):
     return ",".join(str(x) for x in arr)
+
 
 def ssh_server_health(host, user, remote_cmd, timeout_sec=3.0):
     if not host:
@@ -51,6 +53,7 @@ def ssh_server_health(host, user, remote_cmd, timeout_sec=3.0):
         dt = time.time() - t0
         return {"_ok": False, "_err": f"ssh_exception:{e}", "_elapsed": round(dt, 3)}
 
+
 def extract_callstatus(output_text: str):
     if not output_text:
         return {"found": False}
@@ -81,10 +84,56 @@ def extract_callstatus(output_text: str):
         "any_nonzero": any(v != 0 for v in cs),
     }
 
+
+def do_ping(client_cmd_prefix, env, ping_timeout_ms: int, proc_timeout_sec: float):
+    cmd = client_cmd_prefix + ["--ping", "--ping_timeout_ms", str(ping_timeout_ms)]
+    t0 = time.time()
+    try:
+        p = subprocess.run(
+            cmd,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            timeout=proc_timeout_sec,
+        )
+        dt = time.time() - t0
+        out_tail = "\n".join((p.stdout or "").splitlines()[-25:])
+        return {
+            "_ok": True,
+            "returncode": p.returncode,
+            "elapsed_sec": round(dt, 3),
+            "cmd": cmd,
+            "output_tail": out_tail,
+        }
+    except subprocess.TimeoutExpired as e:
+        dt = time.time() - t0
+        out = ""
+        if getattr(e, "stdout", None):
+            out = e.stdout
+        elif getattr(e, "output", None):
+            out = e.output
+        out_tail = "\n".join((out or "").splitlines()[-25:])
+        return {
+            "_ok": False,
+            "_err": "ping_timeout",
+            "elapsed_sec": round(dt, 3),
+            "cmd": cmd,
+            "output_tail": out_tail,
+        }
+    except Exception as e:
+        dt = time.time() - t0
+        return {
+            "_ok": False,
+            "_err": f"ping_exception:{e}",
+            "elapsed_sec": round(dt, 3),
+            "cmd": cmd,
+        }
+
+
 def build_client_env(base: Path):
     env = os.environ.copy()
 
-    # run_client.py와 동일 컨셉: local wrappers + user-space libs 모두 포함
     local_so_paths = [
         base / "commonapi-wrappers" / "build",
         base / "commonapi-wrappers" / "playground" / "lib",
@@ -95,11 +144,16 @@ def build_client_env(base: Path):
     ]
 
     all_paths = [str(p) for p in (local_so_paths + user_paths) if p.is_dir()]
-    env["LD_LIBRARY_PATH"] = ":".join(all_paths) + ":" + env.get("LD_LIBRARY_PATH", "")
+    old_ld = env.get("LD_LIBRARY_PATH", "")
+    if all_paths:
+        env["LD_LIBRARY_PATH"] = ":".join(all_paths + ([old_ld] if old_ld else []))
+    else:
+        env["LD_LIBRARY_PATH"] = old_ld
 
     env.setdefault("VSOMEIP_APPLICATION_NAME", "graphql")
     env.setdefault("VSOMEIP_CONFIGURATION", str(base / "vsomeip-client-sd.json"))
     return env
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -115,34 +169,41 @@ def main():
     ap.add_argument(
         "--server_health_cmd",
         default="cd ~/someip-captures/server/test-someip-service && python3 server_health.py",
-        help="remote command to run on server via ssh"
+        help="remote command to run on server via ssh",
     )
     ap.add_argument("--server_check_every", type=int, default=1, help="check server every N cases (1=every case)")
     ap.add_argument("--oracle", default="returncode", choices=["returncode", "callstatus"], help="oracle mode")
 
-    # ✅ 핵심: run_client.py를 통해 실행할지 선택 (기본 True 권장)
-    ap.add_argument("--use_run_client_wrapper", action="store_true",
-                    help="run via ./run_client.py to ensure identical env as manual run")
+    ap.add_argument(
+        "--ping_on_fail",
+        action="store_true",
+        help="if a case fails/timeout, run an extra --ping to check server responsiveness",
+    )
+    ap.add_argument("--ping_timeout_ms", type=int, default=1000, help="PlaygroundClient --ping_timeout_ms value")
+    ap.add_argument("--ping_proc_timeout", type=float, default=2.0, help="timeout seconds for the ping subprocess")
+
+    ap.add_argument(
+        "--use_run_client_wrapper",
+        action="store_true",
+        help="run via ./run_client.py to ensure identical env as manual run",
+    )
 
     args = ap.parse_args()
 
     base = Path.cwd()
     jsonl_path = base / args.jsonl
-
     if not jsonl_path.exists():
         print(f"[ERR] jsonl not found: {jsonl_path}", file=sys.stderr)
         return 2
 
     env = build_client_env(base)
 
-    # 실행 커맨드 결정
     if args.use_run_client_wrapper:
         wrapper = base / "run_client.py"
         if not wrapper.exists():
             print(f"[ERR] run_client.py not found: {wrapper}", file=sys.stderr)
             return 4
         client_cmd_prefix = [sys.executable, str(wrapper)]
-        # wrapper가 env를 다시 세팅하지만, 여기 env도 넣어줘도 무방
     else:
         client_path = base / args.client
         if not client_path.exists():
@@ -160,6 +221,7 @@ def main():
             if not line:
                 continue
 
+            # 1) JSON 파싱 + CLI 인자 준비
             try:
                 tc = json.loads(line)
                 door = tc.get("door")
@@ -174,14 +236,21 @@ def main():
 
             except Exception as e:
                 fail += 1
-                rec = {"idx": idx, "status": "invalid_json", "error": str(e)}
+                rec = {"idx": idx, "status": "invalid_json", "error": str(e), "line": line}
                 f_log.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                print(f"[{idx}] INVALID_JSON error={e}")
                 if args.stop_on_fail:
                     break
+                time.sleep(args.delay)
                 continue
 
+            # 2) 서버 상태 pre-check
             server_before = None
-            do_check = (args.server_host != "") and (args.server_check_every > 0) and ((idx - 1) % args.server_check_every == 0)
+            do_check = (
+                args.server_host != ""
+                and args.server_check_every > 0
+                and ((idx - 1) % args.server_check_every == 0)
+            )
             if do_check:
                 server_before = ssh_server_health(args.server_host, args.server_user, args.server_health_cmd)
                 last_server_health = server_before
@@ -208,6 +277,7 @@ def main():
                 "--seat_level", sl,
             ]
 
+            # 3) 케이스 실행
             t0 = time.time()
             try:
                 p = subprocess.run(
@@ -219,12 +289,14 @@ def main():
                     timeout=args.timeout,
                 )
                 dt = time.time() - t0
+                out_text = p.stdout or ""
 
+                # 4) oracle 판정
                 if args.oracle == "returncode":
                     success = (p.returncode == 0)
                     oracle_detail = {"mode": "returncode", "returncode": p.returncode}
                 else:
-                    cs = extract_callstatus(p.stdout or "")
+                    cs = extract_callstatus(out_text)
                     success = bool(cs.get("found") and cs.get("all_zero"))
                     oracle_detail = {"mode": "callstatus", "callstatus": cs, "returncode": p.returncode}
 
@@ -233,6 +305,12 @@ def main():
                 else:
                     fail += 1
 
+                # 5) 실패 시 ping_after 추가 기록
+                ping_after = None
+                if args.ping_on_fail and (not success):
+                    ping_after = do_ping(client_cmd_prefix, env, args.ping_timeout_ms, args.ping_proc_timeout)
+
+                # 6) 서버 상태 post-check
                 server_after = None
                 if do_check:
                     server_after = ssh_server_health(args.server_host, args.server_user, args.server_health_cmd)
@@ -246,13 +324,15 @@ def main():
                     "seat_level": seat_level,
                     "ok": bool(success),
                     "oracle": oracle_detail,
-                    "output_tail": "\n".join((p.stdout or "").splitlines()[-25:]),
+                    "output_tail": "\n".join(out_text.splitlines()[-25:]),
                     "cmd": cmd,
                 }
                 if server_before is not None:
                     rec["server_before"] = server_before
                 if server_after is not None:
                     rec["server_after"] = server_after
+                if ping_after is not None:
+                    rec["ping_after"] = ping_after
 
                 f_log.write(json.dumps(rec, ensure_ascii=False) + "\n")
                 print(f"[{idx}] ok={success} t={dt:.2f}s oracle={args.oracle}")
@@ -264,17 +344,20 @@ def main():
                 dt = time.time() - t0
                 fail += 1
 
-                # timeout일 때도 일부 출력이 있을 수 있으므로 기록
                 out = ""
-                if e.stdout:
+                if getattr(e, "stdout", None):
                     out = e.stdout
-                elif e.output:
+                elif getattr(e, "output", None):
                     out = e.output
 
                 server_after = None
                 if do_check:
                     server_after = ssh_server_health(args.server_host, args.server_user, args.server_health_cmd)
                     last_server_health = server_after
+
+                ping_after = None
+                if args.ping_on_fail:
+                    ping_after = do_ping(client_cmd_prefix, env, args.ping_timeout_ms, args.ping_proc_timeout)
 
                 rec = {
                     "idx": idx,
@@ -292,6 +375,8 @@ def main():
                     rec["server_before"] = server_before
                 if server_after is not None:
                     rec["server_after"] = server_after
+                if ping_after is not None:
+                    rec["ping_after"] = ping_after
 
                 f_log.write(json.dumps(rec, ensure_ascii=False) + "\n")
                 print(f"[{idx}] TIMEOUT t={dt:.2f}s oracle={args.oracle}")
@@ -305,6 +390,7 @@ def main():
     if last_server_health is not None:
         print("[LAST_SERVER_HEALTH]", json.dumps(last_server_health, ensure_ascii=False))
     return 0
+
 
 if __name__ == "__main__":
     raise SystemExit(main())

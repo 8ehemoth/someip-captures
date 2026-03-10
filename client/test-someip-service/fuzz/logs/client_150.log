@@ -1,0 +1,44 @@
+2026-02-03 11:56:00.774308 [info] Parsed vsomeip configuration in 0ms
+2026-02-03 11:56:00.774767 [info] Using configuration file: "/home/client/someip-captures/client/test-someip-service/vsomeip-client-sd.json".
+2026-02-03 11:56:00.774868 [info] Configuration module loaded.
+2026-02-03 11:56:00.774932 [info] Initializing vsomeip application "graphql".
+2026-02-03 11:56:00.775375 [info] Instantiating routing manager [Host].
+2026-02-03 11:56:00.775744 [info] create_local_server Routing endpoint at /tmp/vsomeip-0
+2026-02-03 11:56:00.776335 [info] Service Discovery enabled. Trying to load module.
+2026-02-03 11:56:00.778020 [info] Service Discovery module loaded.
+2026-02-03 11:56:00.778777 [info] Application(graphql, 1343) is initialized (11, 100).
+2026-02-03 11:56:00.780444 [info] REGISTER EVENT(1343): [ff40.0001.8001:is_provider=false]
+2026-02-03 11:56:00.780762 [info] REGISTER EVENT(1343): [ff40.0001.8002:is_provider=false]
+2026-02-03 11:56:00.781045 [info] REGISTER EVENT(1343): [ff40.0001.8003:is_provider=false]
+2026-02-03 11:56:00.781244 [info] REGISTER EVENT(1343): [ff40.0001.8004:is_provider=false]
+2026-02-03 11:56:00.781474 [info] REGISTER EVENT(1343): [ff40.0001.8005:is_provider=false]
+2026-02-03 11:56:00.781833 [info] REGISTER EVENT(1343): [ff40.0001.8006:is_provider=false]
+2026-02-03 11:56:00.782149 [info] REGISTER EVENT(1343): [ff40.0001.8007:is_provider=false]
+2026-02-03 11:56:00.782516 [info] REGISTER EVENT(1343): [ff40.0001.8008:is_provider=false]
+2026-02-03 11:56:00.782989 [info] REGISTER EVENT(1343): [ff40.0001.8009:is_provider=false]
+2026-02-03 11:56:00.783166 [info] REGISTER EVENT(1343): [ff40.0001.800a:is_provider=false]
+2026-02-03 11:56:00.783330 [info] REQUEST(1343): [ff40.0001:1.4294967295]
+2026-02-03 11:56:00.783475 [info] Avoid trigger SD find-service message for local service/instance/major/minor: ff40/1/1/4294967295
+2026-02-03 11:56:00.784016 [info] Listening at /tmp/vsomeip-1343
+Checking availability...
+2026-02-03 11:56:00.784464 [info] Starting vsomeip application "graphql" (1343) using 2 threads I/O nice 255
+2026-02-03 11:56:00.786046 [info] Watchdog is disabled!
+2026-02-03 11:56:00.786496 [info] io thread id from application: 1343 (graphql) is: 7f5440ba1700 TID: 33538
+2026-02-03 11:56:00.787967 [info] vSomeIP 3.1.20.3 | (default)
+2026-02-03 11:56:00.788443 [info] Network interface "ens33" state changed: up
+2026-02-03 11:56:00.789003 [info] Route "default route (0.0.0.0/0) if: ens33 gw: 192.168.40.2" state changed: up
+2026-02-03 11:56:00.789512 [info] udp_server_endpoint_impl: SO_RCVBUF is: 212992
+2026-02-03 11:56:00.789699 [debug] Joining to multicast group 224.244.224.245 from 192.168.40.135
+2026-02-03 11:56:00.789860 [info] udp_server_endpoint_impl: SO_RCVBUF (Multicast) is: 212992
+2026-02-03 11:56:00.796754 [info] SOME/IP routing ready.
+2026-02-03 11:56:00.797759 [info] io thread id from application: 1343 (graphql) is: 7f543a7fc700 TID: 33542
+2026-02-03 11:56:00.798282 [info] main dispatch thread id from application: 1343 (graphql) is: 7f543bfff700 TID: 33539
+2026-02-03 11:56:00.809264 [info] shutdown thread id from application: 1343 (graphql) is: 7f543b7fe700 TID: 33540
+2026-02-03 11:56:01.787131 [info] udp_client_endpoint_impl::connect: SO_RCVBUF is: 212992
+Available.
+[#1] changeDoorsState(OPEN) CallStatus=0
+[#1] setSeatHeatingStatusAttribute(size=7) CallStatus=4
+[#1] setSeatHeatingLevelAttribute(size=7) CallStatus=4
+2026-02-03 11:56:01.109661 [info] RELEASE(1343): [ff40.0001]
+2026-02-03 11:56:01.111395 [info] Stopping vsomeip application "graphql" (1343).
+[INFO] Starting PlaygroundClient: /home/client/someip-captures/client/test-someip-service/build/PlaygroundClient

@@ -1,0 +1,13 @@
+[DBG] buildProxy(domain=local, instance=1, connection=graphql)
+[CAPI][INFO] Loading configuration file '/home/client/someip-captures/client/test-someip-service/commonapi.ini'
+[CAPI][INFO] Using default binding 'someip'
+[CAPI][INFO] Using default shared library folder '/usr/local/lib/commonapi'
+[HOOK] sendmsg sock=12 peer=192.168.40.134:31000 len=20 skip=16 flips=2 seed=114
+[HOOK] flip #1 pos=17 01->21
+[HOOK] flip #2 pos=19 00->08
+[HOOK] sendmsg sock=12 peer=192.168.40.134:31000 len=27 skip=16 flips=2 seed=114
+[HOOK] flip #1 pos=17 00->20
+[HOOK] flip #2 pos=23 00->08
+[HOOK] sendmsg sock=12 peer=192.168.40.134:31000 len=27 skip=16 flips=2 seed=114
+[HOOK] flip #1 pos=17 00->20
+[HOOK] flip #2 pos=23 00->08

@@ -1,0 +1,177 @@
+#!/usr/bin/env python3
+import os
+import json
+import argparse
+from pathlib import Path
+
+from dotenv import load_dotenv
+from openai import OpenAI
+
+
+def is_schema_safe(obj) -> bool:
+    """run_testcases.py가 CLI로 넘길 수 있는 최소 조건(키/타입 안전)"""
+    if not isinstance(obj, dict):
+        return False
+    if obj.get("door") not in ("OPEN", "CLOSE"):
+        return False
+
+    ss = obj.get("seat_status")
+    sl = obj.get("seat_level")
+    if not (isinstance(ss, list) and all(isinstance(x, int) for x in ss)):
+        return False
+    if not (isinstance(sl, list) and all(isinstance(x, int) for x in sl)):
+        return False
+    return True
+
+
+def is_strict_valid(obj) -> bool:
+    """완전 정상 케이스(길이/범위까지 엄격)"""
+    if obj.get("door") not in ("OPEN", "CLOSE"):
+        return False
+
+    ss = obj.get("seat_status")
+    sl = obj.get("seat_level")
+    if not (isinstance(ss, list) and len(ss) == 7 and all(x in (0, 1) for x in ss)):
+        return False
+    if not (isinstance(sl, list) and len(sl) == 7 and all(isinstance(x, int) and 0 <= x <= 255 for x in sl)):
+        return False
+    return True
+
+
+def parse_jsonl_lines_keep_all(text: str):
+    out = []
+    for ln in (text or "").splitlines():
+        ln = ln.strip()
+        if not ln:
+            continue
+        if not (ln.startswith("{") and ln.endswith("}")):
+            continue
+        try:
+            obj = json.loads(ln)
+            if isinstance(obj, dict):
+                out.append(obj)
+        except Exception:
+            continue
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--n", type=int, default=None)
+    ap.add_argument("--out", default=None)
+    ap.add_argument("--pct_valid", type=int, default=None, help="0..100")
+    ap.add_argument("--allow_length_mut", action="store_true", help="길이(7) 깨는 변이를 허용")
+    args = ap.parse_args()
+
+    base_dir = Path(__file__).resolve().parent
+    load_dotenv(dotenv_path=base_dir / ".env")
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY not found in .env (script directory)")
+
+    model = os.getenv("OPENAI_MODEL", "gpt-5-nano")
+    n_cases = args.n if args.n is not None else int(os.getenv("N_CASES", "60"))
+    out_path = Path(args.out if args.out is not None else os.getenv("OUT_PATH", str(base_dir / "testcases_trackA.jsonl")))
+
+    pct_valid = args.pct_valid if args.pct_valid is not None else int(os.getenv("PCT_VALID", "60"))
+    pct_valid = max(0, min(100, pct_valid))
+    pct_mut = 100 - pct_valid
+
+    client = OpenAI(api_key=api_key)
+
+    # Track A: “서버까지 최대한 보내기” 중심 프롬프트
+    # - 기본적으로 타입/키는 절대 깨지지 않게
+    # - length 변이는 옵션으로 켜기(클라가 통과되는지 확인 후)
+    mut_categories = [
+        "boundary: valid 범위 내 극단 패턴(올0/올255/교차/계단 등)",
+        "semantic: 구조는 정상인데 의미가 이상한 조합(ON인데 level=0 등)",
+        "replay: 동일 케이스를 많이 반복(상태머신/부하 관찰용)",
+        "overflow: seat_level에 -1, 256 같은 범위밖 정수(길이는 7 유지)",
+    ]
+    if args.allow_length_mut:
+        mut_categories.append("length: seat_status 또는 seat_level 길이를 6/8로 변경(값은 정수 유지)")
+
+    system_prompt = (
+        "You generate SOME/IP client test cases as JSON Lines (JSONL). Return JSONL only.\n"
+        "Each line must be ONE JSON object with keys:\n"
+        "- door (OPEN or CLOSE)\n"
+        "- seat_status (JSON array of integers)\n"
+        "- seat_level  (JSON array of integers)\n\n"
+        f"You MUST generate a mix of VALID and MUTATED cases.\n"
+        f"- About {pct_valid}% should be strictly VALID:\n"
+        "  door in {OPEN,CLOSE}; seat_status length=7 values in {0,1}; seat_level length=7 integers 0..255\n"
+        f"- About {pct_mut}% should be MUTATED but still schema-safe (keys present, arrays of ints).\n\n"
+        "IMPORTANT:\n"
+        "- NEVER omit keys.\n"
+        "- NEVER change types (no strings/null/objects). Always arrays of ints.\n"
+        "- Keep door only OPEN/CLOSE even in mutated cases.\n\n"
+        "Allowed mutation categories (choose EXACTLY ONE per mutated case):\n"
+        + "\n".join(f"- {c}" for c in mut_categories) + "\n\n"
+        "Rules:\n"
+        "- Output exactly the requested number of JSONL lines.\n"
+        "- Keep diversity; avoid duplicates unless you picked replay.\n"
+    )
+
+    cases = []
+    existing = set()
+    max_rounds = 8
+    round_id = 0
+
+    while len(cases) < n_cases and round_id < max_rounds:
+        round_id += 1
+        need = n_cases - len(cases)
+
+        user_prompt = (
+            f"Generate exactly {need} test cases as JSONL.\n"
+            "Return exactly JSON lines, nothing else.\n"
+        )
+
+        # ✅ Responses API로 통일 (repo의 llm_generate_attack.py와 동일 계열)
+        resp = client.responses.create(
+            model=model,
+            input=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+
+        text = resp.output_text or ""
+        new_cases = parse_jsonl_lines_keep_all(text)
+
+        for c in new_cases:
+            if not is_schema_safe(c):
+                continue
+
+            key = json.dumps(c, sort_keys=True, ensure_ascii=False)
+            if key in existing:
+                continue
+
+            strict_ok = is_strict_valid(c)
+            c["_meta"] = {
+                "strict_valid": strict_ok,
+                "gen_model": model,
+                "round": round_id,
+            }
+
+            cases.append(c)
+            existing.add(key)
+
+            if len(cases) >= n_cases:
+                break
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as f:
+        for c in cases[:n_cases]:
+            f.write(json.dumps(c, ensure_ascii=False) + "\n")
+
+    n_written = min(len(cases), n_cases)
+    n_strict = sum(1 for c in cases[:n_written] if c.get("_meta", {}).get("strict_valid"))
+    print(f"[OK] model={model} wrote={n_written}/{n_cases} -> {out_path}")
+    print(f"[STAT] strict_valid={n_strict}, mutated={n_written - n_strict}")
+    if len(cases) < n_cases:
+        print("[WARN] Could not reach target count. Re-run or increase max_rounds.")
+
+
+if __name__ == "__main__":
+    main()
