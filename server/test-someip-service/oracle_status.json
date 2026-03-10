@@ -1,0 +1,15 @@
+{
+  "ts": "2026-03-03T12:17:01",
+  "pid": 16458,
+  "alive": true,
+  "exit_code": null,
+  "ports": {
+    "30490": true,
+    "31000": true
+  },
+  "port_ok": true,
+  "fatal_seen": false,
+  "fatal_keyword": null,
+  "class": "ALIVE_OK",
+  "log_path": "/home/server/someip-captures/server/test-someip-service/server.log"
+}
