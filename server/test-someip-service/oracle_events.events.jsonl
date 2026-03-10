@@ -10733,3 +10733,8 @@
 {"ts": "2026-03-10T15:05:27", "event": "port_check", "sha": "e30884fad3", "pid": 1734, "ports": {"30490": true, "31000": true}, "port_ok": true}
 {"ts": "2026-03-10T15:05:32", "event": "port_check", "sha": "e30884fad3", "pid": 1734, "ports": {"30490": true, "31000": true}, "port_ok": true}
 {"ts": "2026-03-10T15:05:37", "event": "port_check", "sha": "e30884fad3", "pid": 1734, "ports": {"30490": true, "31000": true}, "port_ok": true}
+{"ts": "2026-03-10T15:05:42", "event": "port_check", "sha": "e30884fad3", "pid": 1734, "ports": {"30490": true, "31000": true}, "port_ok": true}
+{"ts": "2026-03-10T15:05:47", "event": "port_check", "sha": "e30884fad3", "pid": 1734, "ports": {"30490": true, "31000": true}, "port_ok": true}
+{"ts": "2026-03-10T15:05:52", "event": "port_check", "sha": "e30884fad3", "pid": 1734, "ports": {"30490": true, "31000": true}, "port_ok": true}
+{"ts": "2026-03-10T15:05:57", "event": "port_check", "sha": "e30884fad3", "pid": 1734, "ports": {"30490": true, "31000": true}, "port_ok": true}
+{"ts": "2026-03-10T15:06:03", "event": "port_check", "sha": "e30884fad3", "pid": 1734, "ports": {"30490": true, "31000": true}, "port_ok": true}
