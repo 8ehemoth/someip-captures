@@ -1,0 +1,15 @@
+{"door": "CLOSE", "seat_status": [0, 0, 0, 0, 0, 0, 0], "seat_level": [0, 0, 0, 0, 0, 0, 0], "_meta": {"strict_valid": true, "gen_model": "gpt-5-nano", "round": 5}}
+{"door": "OPEN", "seat_status": [1, 0, 1, 0, 1, 0, 1], "seat_level": [0, 255, 0, 255, 0, 255, 0], "_meta": {"strict_valid": true, "gen_model": "gpt-5-nano", "round": 5}}
+{"door": "CLOSE", "seat_status": [0, 1, 0, 1, 0, 1, 0], "seat_level": [1, 2, 3, 4, 5, 6, 7], "_meta": {"strict_valid": true, "gen_model": "gpt-5-nano", "round": 5}}
+{"door": "OPEN", "seat_status": [1, 1, 1, 1, 1, 1, 1], "seat_level": [0, 0, 0, 0, 0, 0, 0], "_meta": {"strict_valid": true, "gen_model": "gpt-5-nano", "round": 5}}
+{"door": "CLOSE", "seat_status": [1, 1, 1, 1, 1, 1, 1], "seat_level": [255, 0, 0, 0, 0, 0, 0], "_meta": {"strict_valid": true, "gen_model": "gpt-5-nano", "round": 5}}
+{"door": "OPEN", "seat_status": [0, 0, 0, 0, 0, 0, 0], "seat_level": [10, 20, 30, 40, 50, 60, 70], "_meta": {"strict_valid": true, "gen_model": "gpt-5-nano", "round": 5}}
+{"door": "OPEN", "seat_status": [1, 0, 1, 0, 1, 0, 1], "seat_level": [-1, 0, 0, 0, 0, 0, 0], "_meta": {"strict_valid": false, "gen_model": "gpt-5-nano", "round": 5}}
+{"door": "CLOSE", "seat_status": [0, 1, 0, 1, 0, 1, 0], "seat_level": [256, 0, 0, 0, 0, 0, 0], "_meta": {"strict_valid": false, "gen_model": "gpt-5-nano", "round": 5}}
+{"door": "OPEN", "seat_status": [1, 1, 0, 0, 1, 0, 1], "seat_level": [-5, 300, 100, -10, 260, 0, 0], "_meta": {"strict_valid": false, "gen_model": "gpt-5-nano", "round": 5}}
+{"door": "OPEN", "seat_status": [0, 0, 0, 0, 0, 0, 0], "seat_level": [1, 2, 3, 4, 5, 6, 7], "_meta": {"strict_valid": true, "gen_model": "gpt-5-nano", "round": 5}}
+{"door": "OPEN", "seat_status": [0, 0, 0, 0, 0, 0, 0], "seat_level": [0, 0, 0, 0, 0, 0, 0], "_meta": {"strict_valid": true, "gen_model": "gpt-5-nano", "round": 5}}
+{"door": "OPEN", "seat_status": [1, 0, 0, 0, 0, 0, 0], "seat_level": [0, 1, 0, 0, 0, 0, 0], "_meta": {"strict_valid": true, "gen_model": "gpt-5-nano", "round": 5}}
+{"door": "CLOSE", "seat_status": [0, 1, 0, 0, 0, 0, 0], "seat_level": [0, 0, 1, 0, 0, 0, 0], "_meta": {"strict_valid": true, "gen_model": "gpt-5-nano", "round": 5}}
+{"door": "OPEN", "seat_status": [1, 1, 0, 0, 0, 0, 0], "seat_level": [10, 20, 0, 0, 0, 0, 0], "_meta": {"strict_valid": true, "gen_model": "gpt-5-nano", "round": 5}}
+{"door": "CLOSE", "seat_status": [0, 0, 1, 0, 1, 0, 0], "seat_level": [5, 25, 100, 0, 0, 0, 0], "_meta": {"strict_valid": true, "gen_model": "gpt-5-nano", "round": 5}}

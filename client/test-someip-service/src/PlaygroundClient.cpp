@@ -1,10 +1,10 @@
-// PlaygroundClient.cpp (FINAL - fixed connection match for CommonAPI-SomeIP)
+// PlaygroundClient.cpp (FINAL - heartbeat/ping ready)
 // 핵심:
-// - buildProxy<PlaygroundProxy>("local","1","graphql") 로 connection을 명시 (중요!)
-// - connection(=vsomeip application name) == VSOMEIP_APPLICATION_NAME == vsomeip-client-sd.json applications.name
-// - proxy 타입은 PlaygroundProxy<> (원본 패턴 유지)
-// - argv: --door / --seat_status / --seat_level / --count / --delay 지원
-// - Attribute::setValue 시그니처 (request, status, response) 맞춤
+// - buildProxy<PlaygroundProxy>("local","1","graphql") connection 명시
+// - --ping 모드: isAvailable()만 확인하고 종료 (부작용 없음)
+// - --ping_timeout_ms로 무한 대기 방지
+// - 일반 모드: 기존 door/seat set 동작 유지 (기존 실험용)
+// - --help 지원
 
 #include <CommonAPI/CommonAPI.hpp>
 
@@ -23,11 +23,19 @@
 using namespace std;
 using namespace v1_0::org::genivi::vehicle::playground;
 
-typedef ::org::genivi::vehicle::playgroundtypes::PlaygroundTypes::DoorsStatus DoorsStatus;
+using DoorCommand     = ::org::genivi::vehicle::playgroundtypes::PlaygroundTypes::DoorCommand;
+using CarDoorsCommand = ::org::genivi::vehicle::playgroundtypes::PlaygroundTypes::CarDoorsCommand;
 
-static string getArgValue(int argc, char** argv, const string& key, const string& def = "") {
+static bool hasFlag(int argc, char** argv, const std::string& flag) {
     for (int i = 1; i < argc; i++) {
-        if (string(argv[i]) == key && i + 1 < argc) return string(argv[i + 1]);
+        if (std::string(argv[i]) == flag) return true;
+    }
+    return false;
+}
+
+static std::string getArgValue(int argc, char** argv, const std::string& key, const std::string& def = "") {
+    for (int i = 1; i < argc; i++) {
+        if (std::string(argv[i]) == key && i + 1 < argc) return std::string(argv[i + 1]);
     }
     return def;
 }
@@ -43,20 +51,53 @@ static vector<int> parseIntList(const string& s) {
     return out;
 }
 
+static DoorCommand doorLiteral(const string& m) {
+    string u = m;
+    transform(u.begin(), u.end(), u.begin(), ::toupper);
+    if (u == "OPEN")  return DoorCommand(DoorCommand::Literal::OPEN_DOOR);
+    return DoorCommand(DoorCommand::Literal::CLOSE_DOOR);
+}
+
+static void printHelp(const char* prog) {
+    std::cout
+        << "Usage: " << prog << " [options]\n"
+        << "\n"
+        << "Heartbeat:\n"
+        << "  --ping                     : Check proxy availability only (no side effects)\n"
+        << "  --ping_timeout_ms <ms>     : Timeout for availability (default 1000)\n"
+        << "\n"
+        << "Normal actions (side effects - for experiments):\n"
+        << "  --door <OPEN|CLOSE>        : door command (default OPEN)\n"
+        << "  --seat_status <csv 7 ints> : seat heating status (default 0,0,0,0,0,0,0)\n"
+        << "  --seat_level <csv 7 ints>  : seat heating level (default 0,0,0,0,0,0,0)\n"
+        << "  --count <n>                : repeat count (default 1)\n"
+        << "  --delay <sec>              : sleep between iterations (default 0)\n"
+        << "\n";
+}
+
 int main(int argc, char** argv) {
+    if (hasFlag(argc, argv, "--help") || hasFlag(argc, argv, "-h")) {
+        printHelp(argv[0]);
+        return 0;
+    }
+
+    // modes
+    bool ping_only = hasFlag(argc, argv, "--ping");
+    int ping_timeout_ms = stoi(getArgValue(argc, argv, "--ping_timeout_ms", "1000"));
+
+    // normal args
     string door_mode = getArgValue(argc, argv, "--door", "OPEN");
     string seat_status_s = getArgValue(argc, argv, "--seat_status", "0,0,0,0,0,0,0");
     string seat_level_s  = getArgValue(argc, argv, "--seat_level",  "0,0,0,0,0,0,0");
     int count = stoi(getArgValue(argc, argv, "--count", "1"));
     int delay = stoi(getArgValue(argc, argv, "--delay", "0"));
 
-    // ★★★ 핵심 수정: connection을 명시해서 CommonAPI buildProxy 매칭을 강제 ★★★
-    // connection == vsomeip application name
+    // connection (must match VSOMEIP_APPLICATION_NAME and vsomeip-client-sd.json applications.name)
     const std::string connection = "graphql";
 
     std::shared_ptr<CommonAPI::Runtime> runtime = CommonAPI::Runtime::get();
 
-    // 디버그: 실제 어떤 connection으로 프록시를 만들려는지 출력
+    // debug
     std::cerr << "[DBG] buildProxy(domain=local, instance=1, connection=" << connection << ")\n";
 
     std::shared_ptr<PlaygroundProxy<>> proxy =
@@ -71,22 +112,27 @@ int main(int argc, char** argv) {
         return 11;
     }
 
-    std::cout << "Checking availability..." << std::endl;
-    while (!proxy->isAvailable())
-        usleep(10);
-    std::cout << "Available." << std::endl;
+    // availability wait with timeout
+    auto start = std::chrono::steady_clock::now();
+    auto deadline = start + std::chrono::milliseconds(ping_timeout_ms);
+
+    while (!proxy->isAvailable()) {
+        if (ping_timeout_ms > 0 && std::chrono::steady_clock::now() > deadline) {
+            std::cerr << "[PING] not available within timeout_ms=" << ping_timeout_ms << "\n";
+            return 124; // timeout-like exit code
+        }
+        // 10ms sleep
+        usleep(10 * 1000);
+    }
+
+    if (ping_only) {
+        std::cout << "[PING] ok\n";
+        return 0;
+    }
+
+    std::cout << "Available.\n";
 
     CommonAPI::CallStatus status;
-
-    using DoorCommand     = ::org::genivi::vehicle::playgroundtypes::PlaygroundTypes::DoorCommand;
-    using CarDoorsCommand = ::org::genivi::vehicle::playgroundtypes::PlaygroundTypes::CarDoorsCommand;
-
-    auto doorLiteral = [&](const string& m) -> DoorCommand {
-        string u = m;
-        transform(u.begin(), u.end(), u.begin(), ::toupper);
-        if (u == "OPEN")  return DoorCommand(DoorCommand::Literal::OPEN_DOOR);
-        return DoorCommand(DoorCommand::Literal::CLOSE_DOOR);
-    };
 
     const int N = 7;
     vector<int> seat_status_i = parseIntList(seat_status_s);

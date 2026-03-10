@@ -1,0 +1,5 @@
+{"door":"OPEN","seat_status":[1,1,1,1,1,1,1,1],"seat_level":[0,0,0,0,0,0,0]}             
+{"door":"OPEN","seat_status":[1,1,1,1,1,1,1],"seat_level":[0,0,0,0,0,0,0,0]}             
+{"door":"OPEN","seat_status":[1,1,1,1,1,1,1],"seat_level":[0,0,0,0,0,0,"x"]}             
+{"door":"OPEN","seat_status":[1,1,1,1,1,1,1],"seat_level":[0,0,0,0,0,0,null]}            
+{"door":"OPEN","seat_status":[1,1,1,1,1,1,2],"seat_level":[0,0,0,0,0,0,0]}               
