@@ -1,0 +1,4 @@
+digraph g {
+	node [color=black];
+	edge [color=black];
+}
